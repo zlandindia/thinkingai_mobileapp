@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  FlatList,
   TouchableOpacity,
+  ActivityIndicator,
+  FlatList,
   Modal,
   Pressable,
 } from 'react-native';
@@ -12,52 +13,98 @@ import Tts from 'react-native-tts';
 
 const App = () => {
   const [isActive, setIsActive] = useState(false);
+  const [quotes, setQuotes] = useState([]);
+  const [loading, setLoading] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
-  const [selectedRecommendation, setSelectedRecommendation] = useState(null);
-
-  const [recommendations, setRecommendations] = useState([
-    { id: '1', title: 'Learn React Native', details: 'Dive into React Native for mobile app development.' },
-    { id: '2', title: 'Explore Firebase', details: 'Understand how Firebase can help with your app backend.' },
-    { id: '3', title: 'Build a Recommendation App', details: 'Create a recommendation system using AI.' },
-  ]);
+  const [selectedQuote, setSelectedQuote] = useState(null);
 
   // TTS Configuration
   Tts.setDefaultRate(0.5);
   Tts.setDefaultPitch(1.0);
 
-  const toggleSystem = () => {
-    setIsActive(!isActive);
-    if (!isActive) {
-      Tts.speak('Recommendation system activated. Here are your recommendations.');
-    } else {
-      Tts.speak('Recommendation system deactivated.');
+  const fetchQuote = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch('https://zenquotes.io/api/random');
+      const data = await response.json();
+      const newQuote = {
+        id: Date.now().toString(),
+        text: data[0].q,
+        author: data[0].a,
+      };
+
+      setQuotes((prev) => [newQuote, ...prev]);
+      if (isActive) {
+        pronounceQuote(newQuote.text, newQuote.author);
+      }
+    } catch (error) {
+      console.error('Error fetching quote:', error.message);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleRecommendationPress = (recommendation) => {
-    setSelectedRecommendation(recommendation);
+  const pronounceQuote = (text, author) => {
+    // Split the quote into sentences and pronounce each one sequentially
+    const chunks = text.split('. ');
+    chunks.forEach((chunk, index) => {
+      setTimeout(() => {
+        Tts.speak(chunk.trim());
+      }, index * 3000); // 3 seconds per sentence
+    });
+
+    // Speak the author's name after the quote
+    setTimeout(() => {
+      Tts.speak(`By ${author}`);
+    }, chunks.length * 3000);
+  };
+
+  useEffect(() => {
+    let interval;
+    if (isActive) {
+      fetchQuote(); // Fetch immediately on activation
+      interval = setInterval(fetchQuote, 10000); // Fetch every 20 seconds
+    } else {
+      clearInterval(interval);
+    }
+    return () => clearInterval(interval);
+  }, [isActive]);
+
+  const toggleSystem = () => {
+    setIsActive(!isActive);
+    if (!isActive) {
+      Tts.speak('Thinking AI system activated. Started Suggesions.');
+    } else {
+      Tts.speak('Thinking AI system deactivated.');
+    }
+  };
+
+  const handleQuotePress = (quote) => {
+    setSelectedQuote(quote);
     setModalVisible(true);
-    Tts.speak(recommendation.title + '. ' + recommendation.details);
+    pronounceQuote(quote.text, quote.author);
   };
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Recommendation System</Text>
+      <Text style={styles.title}>ThinkingAI</Text>
 
-      {/* Recommendations List */}
+      {/* Quotes List */}
+      {loading && <ActivityIndicator size="large" color="#4CAF50" />}
       <FlatList
-        data={isActive ? recommendations : []}
+        data={quotes}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
           <TouchableOpacity
             style={styles.card}
-            onPress={() => handleRecommendationPress(item)}
+            onPress={() => handleQuotePress(item)}
           >
-            <Text style={styles.cardText}>{item.title}</Text>
+            <Text style={styles.cardText}>{item.text}</Text>
+            <Text style={styles.cardAuthor}>- {item.author}</Text>
           </TouchableOpacity>
         )}
         ListEmptyComponent={
-          !isActive && <Text style={styles.emptyText}>Activate the system to see recommendations.</Text>
+          !loading && <Text style={styles.emptyText}>Activate to fetch quotes.</Text>
         }
       />
 
@@ -69,18 +116,18 @@ const App = () => {
         <Text style={styles.buttonText}>{isActive ? 'Deactivate' : 'Activate'}</Text>
       </TouchableOpacity>
 
-      {/* Popup Modal */}
-      {selectedRecommendation && (
+      {/* Quote Details Modal */}
+      {selectedQuote && (
         <Modal
-          animationType="fade"
+          animationType="slide"
           transparent={true}
           visible={modalVisible}
           onRequestClose={() => setModalVisible(false)}
         >
           <View style={styles.modalOverlay}>
             <View style={styles.modalContainer}>
-              <Text style={styles.modalTitle}>{selectedRecommendation.title}</Text>
-              <Text style={styles.modalMessage}>{selectedRecommendation.details}</Text>
+              <Text style={styles.modalQuote}>{selectedQuote.text}</Text>
+              <Text style={styles.modalAuthor}>- {selectedQuote.author}</Text>
 
               <Pressable
                 style={styles.closeButton}
@@ -96,7 +143,7 @@ const App = () => {
   );
 };
 
-// Styles for the components
+// Styles
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -118,10 +165,19 @@ const styles = StyleSheet.create({
     marginHorizontal: 10,
     borderRadius: 10,
     elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
   },
   cardText: {
     fontSize: 16,
     color: '#333',
+    marginBottom: 5,
+  },
+  cardAuthor: {
+    fontSize: 14,
+    color: '#888',
   },
   emptyText: {
     marginTop: 20,
@@ -144,10 +200,12 @@ const styles = StyleSheet.create({
     shadowRadius: 3,
   },
   active: {
-    backgroundColor: '#4CAF50',
+    // backgroundColor: '#4CAF50',
+    backgroundColor: '#FF5722',
   },
   inactive: {
-    backgroundColor: '#FF5722',
+    // backgroundColor: '#FF5722',
+    backgroundColor: '#4CAF50',
   },
   buttonText: {
     color: '#fff',
@@ -172,16 +230,16 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 5,
   },
-  modalTitle: {
-    fontSize: 20,
+  modalQuote: {
+    fontSize: 18,
     fontWeight: 'bold',
-    marginBottom: 10,
+    marginBottom: 15,
+    textAlign: 'center',
     color: '#333',
   },
-  modalMessage: {
+  modalAuthor: {
     fontSize: 16,
     color: '#555',
-    textAlign: 'center',
     marginBottom: 20,
   },
   closeButton: {
@@ -189,7 +247,6 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 20,
     borderRadius: 20,
-    elevation: 5,
   },
   closeButtonText: {
     color: '#fff',
