@@ -33,7 +33,9 @@ const App = () => {
         author: data[0].a,
       };
 
-      setQuotes((prev) => [newQuote, ...prev]);
+      // Replace the current quote with the new one
+      setQuotes([newQuote]);
+
       if (isActive) {
         pronounceQuote(newQuote.text, newQuote.author);
       }
@@ -45,7 +47,6 @@ const App = () => {
   };
 
   const pronounceQuote = (text, author) => {
-    // Split the quote into sentences and pronounce each one sequentially
     const chunks = text.split('. ');
     chunks.forEach((chunk, index) => {
       setTimeout(() => {
@@ -53,7 +54,6 @@ const App = () => {
       }, index * 3000); // 3 seconds per sentence
     });
 
-    // Speak the author's name after the quote
     setTimeout(() => {
       Tts.speak(`By ${author}`);
     }, chunks.length * 3000);
@@ -63,7 +63,7 @@ const App = () => {
     let interval;
     if (isActive) {
       fetchQuote(); // Fetch immediately on activation
-      interval = setInterval(fetchQuote, 10000); // Fetch every 20 seconds
+      interval = setInterval(fetchQuote, 15000); // Fetch every 10 seconds
     } else {
       clearInterval(interval);
     }
@@ -73,7 +73,7 @@ const App = () => {
   const toggleSystem = () => {
     setIsActive(!isActive);
     if (!isActive) {
-      Tts.speak('Thinking AI system activated. Started Suggesions.');
+      Tts.speak('Thinking AI system activated. Start its Quotes.');
     } else {
       Tts.speak('Thinking AI system deactivated.');
     }
@@ -89,7 +89,6 @@ const App = () => {
     <View style={styles.container}>
       <Text style={styles.title}>ThinkingAI</Text>
 
-      {/* Quotes List */}
       {loading && <ActivityIndicator size="large" color="#4CAF50" />}
       <FlatList
         data={quotes}
@@ -108,7 +107,6 @@ const App = () => {
         }
       />
 
-      {/* Floating Bubble Button */}
       <TouchableOpacity
         style={[styles.floatingButton, isActive ? styles.active : styles.inactive]}
         onPress={toggleSystem}
@@ -116,7 +114,6 @@ const App = () => {
         <Text style={styles.buttonText}>{isActive ? 'Deactivate' : 'Activate'}</Text>
       </TouchableOpacity>
 
-      {/* Quote Details Modal */}
       {selectedQuote && (
         <Modal
           animationType="slide"
@@ -143,7 +140,7 @@ const App = () => {
   );
 };
 
-// Styles
+// Styles (unchanged)
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -200,11 +197,9 @@ const styles = StyleSheet.create({
     shadowRadius: 3,
   },
   active: {
-    // backgroundColor: '#4CAF50',
     backgroundColor: '#FF5722',
   },
   inactive: {
-    // backgroundColor: '#FF5722',
     backgroundColor: '#4CAF50',
   },
   buttonText: {
